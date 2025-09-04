@@ -28,7 +28,7 @@ export default class BrightnessPanel extends PureComponent {
         let lastValidMonitor
         for(const key in this.state.monitors) {
           const monitor = this.state.monitors[key]
-          if(monitor.type == "wmi" || monitor.type == "studio-display" || (monitor.type == "ddcci" && monitor.brightnessType)) {
+          if(monitor.type == "wmi" || monitor.type == "studio-display" || (monitor.type == "ddcci" && monitor.brightnessType) || (window.settings?.sdrAsMainSlider && monitor.hdr)) {
            lastValidMonitor = monitor 
           }
         }
@@ -71,7 +71,7 @@ export default class BrightnessPanel extends PureComponent {
           if (monitor.type == "none" || window.settings?.hideDisplays?.[monitor.key] === true) {
             return (<div key={monitor.key}></div>)
           } else {
-            if (monitor.type == "wmi" || monitor.type == "studio-display" || (monitor.type == "ddcci" && monitor.brightnessType)) {
+            if (monitor.type == "wmi" || monitor.type == "studio-display" || (monitor.type == "ddcci" && monitor.brightnessType) || (window.settings?.sdrAsMainSlider && monitor.hdr)) {
 
               let hasFeatures = true
               let featureCount = 0
@@ -92,7 +92,7 @@ export default class BrightnessPanel extends PureComponent {
               }
 
               let showHDRSliders = false
-              if((monitor.hdr === "active" || window.settings?.hdrDisplays?.[monitor.key]) && !(window.settings?.sdrAsMainSliderDisplays?.[monitor.key])) {
+              if((monitor.hdr === "active" || window.settings?.hdrDisplays?.[monitor.key]) && !(window.settings?.sdrAsMainSliderDisplays?.[monitor.key] || window.settings?.sdrAsMainSlider)) {
                 // Has HDR slider enabled
                 hasFeatures = true
                 useFeatures = true

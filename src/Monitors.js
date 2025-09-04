@@ -126,7 +126,7 @@ refreshMonitors = async (fullRefresh = false, ddcciType = "default", alwaysSendU
 
             // DDC/CI
             try {
-                if (settings?.getDDCBrightnessUpdates) {
+                if (settings?.getDDCBrightnessUpdates && !settings?.sdrAsMainSlider) {
                     if(!getDDCCI()) {
                         ddcci._refresh(determineDDCCIMethod(), true, !settings.disableHighLevel)
                     }
@@ -286,8 +286,9 @@ getAllMonitors = async (ddcciMethod = "default") => {
     }
     
 
-    // DDC/CI Brightness + Features
+    // DDC/CI Brightness + Features (skip when using SDR as main slider)
     try {
+        if(!settings?.sdrAsMainSlider) {
         startTime = process.hrtime.bigint()
         const featuresList = await getFeaturesDDC(ddcciMethod, false)
 
@@ -340,6 +341,7 @@ getAllMonitors = async (ddcciMethod = "default") => {
             updateDisplay(foundMonitors, hwid2, ddcciInfo)
         }
         console.log(`getFeaturesDDC() Total: ${(startTime - process.hrtime.bigint()) / BigInt(-1000000)}ms`)
+        }
     } catch (e) {
         console.log("\x1b[41m" + "getFeaturesDDC() failed!" + "\x1b[0m", e)
     }
@@ -491,6 +493,9 @@ getHDRDisplays = async (monitors) => {
                 key: hwid[2],
                 id: display.path,
                 hwid,
+                // Mark as HDR-only display when global/per-display SDR-as-main is enabled,
+                // so UI does not filter it out due to missing DDC/CI/WMI.
+                type: ((settings?.sdrAsMainSlider || settings?.sdrAsMainSliderDisplays?.[hwid[2]]) ? "hdr" : undefined),
                 sdrNits: display.nits,
                 sdrLevel: parseInt((display.nits - 80) / 4),
                 hdr: (display.hdrActive ? "active" : display.hdrEnabled ? "supported" : "unsupported")

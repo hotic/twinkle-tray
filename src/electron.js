@@ -800,6 +800,12 @@ function processSettings(newSettings = {}, sendUpdate = true) {
       rebuildTray = true
     }
 
+    // Refresh monitors when toggling SDR-as-main options
+    if (newSettings.sdrAsMainSlider !== undefined || newSettings.sdrAsMainSliderDisplays !== undefined) {
+      shouldRefreshMonitors = true
+      doRestartPanel = true
+    }
+
     if (newSettings.monitorFeatures !== undefined) {
       shouldRefreshMonitors = true
       try {
@@ -1077,9 +1083,9 @@ function applyProfile(profile = {}, useTransition = false, transitionSpeed = 1, 
         if(shouldSkipDisplay(monitor)) continue;
 
         // Apply brightness to valid display types
-        if (monitor.type == "wmi" || monitor.type == "studio-display" || (monitor.type == "ddcci" && monitor.brightnessType)) {
+        if (monitor.type == "wmi" || monitor.type == "studio-display" || (monitor.type == "ddcci" && monitor.brightnessType) || (settings.sdrAsMainSlider && monitor.hdr)) {
           // Replace DDC/CI brightness with SDR
-          if(settings.sdrAsMainSliderDisplays?.[monitor.key] && monitor.hdr === "active") {
+          if((settings.sdrAsMainSliderDisplays?.[monitor.key] || settings.sdrAsMainSlider) && monitor.hdr === "active") {
             monitor.brightness = monitor.sdrLevel
           }
           updateBrightness(monitor.id, monitor.brightness)
@@ -1318,7 +1324,7 @@ async function hotkeyOverlayShow() {
   panelState = "overlay"
   let monitorCount = 0
   Object.values(monitors).forEach((monitor) => {
-    if ((monitor.type === "ddcci" || monitor.type === "studio-display" || monitor.type === "wmi") && (settings?.hideDisplays?.[monitor.key] !== true)) monitorCount++;
+    if (((monitor.type === "ddcci" || monitor.type === "studio-display" || monitor.type === "wmi") || (settings.sdrAsMainSlider && monitor.hdr)) && (settings?.hideDisplays?.[monitor.key] !== true)) monitorCount++;
   })
 
   if (monitorCount && settings.linkedLevelsActive) {
@@ -1525,6 +1531,17 @@ function getLocalization() {
       console.error(`Couldn't read language file: ${localization.detected}.json`)
     }
   }
+
+  // Inject missing translations for new SDR global option
+  try {
+    if (localization.detected === "zh_Hans") {
+      localization.desired["SETTINGS_MONITORS_SDR_GLOBAL_TITLE"] = localization.desired["SETTINGS_MONITORS_SDR_GLOBAL_TITLE"] || "在 HDR 下用 SDR 作为主滑块";
+      localization.desired["SETTINGS_MONITORS_SDR_GLOBAL_DESCRIPTION"] = localization.desired["SETTINGS_MONITORS_SDR_GLOBAL_DESCRIPTION"] || "当 HDR 开启时，将主亮度改为调节“SDR 内容亮度”（绕过 DDC/CI）。";
+    } else if (localization.detected === "zh-Hant") {
+      localization.desired["SETTINGS_MONITORS_SDR_GLOBAL_TITLE"] = localization.desired["SETTINGS_MONITORS_SDR_GLOBAL_TITLE"] || "在 HDR 下以 SDR 作為主滑桿";
+      localization.desired["SETTINGS_MONITORS_SDR_GLOBAL_DESCRIPTION"] = localization.desired["SETTINGS_MONITORS_SDR_GLOBAL_DESCRIPTION"] || "當 HDR 開啟時，主亮度改為調整「SDR 內容亮度」（略過 DDC/CI）。";
+    }
+  } catch (e) { }
 
   T = new Translate(localization.desired, localization.default)
   sendToAllWindows("localization-updated", localization)
@@ -1858,7 +1875,7 @@ async function refreshMonitors(fullRefresh = false, bypassRateLimit = false) {
 
 
       // Replace DDC/CI brightness with SDR
-      if(settings.sdrAsMainSliderDisplays?.[monitor.key] && monitor.hdr === "active") {
+      if((settings.sdrAsMainSliderDisplays?.[monitor.key] || settings.sdrAsMainSlider) && monitor.hdr === "active") {
         monitor.brightness = monitor.sdrLevel
       }
 
@@ -1989,7 +2006,7 @@ function updateBrightness(index, newLevel, useCap = true, vcpValue = "brightness
     }
     
 
-    if(vcp == "brightness" && monitor.hdr === "active" && settings.sdrAsMainSliderDisplays?.[monitor.key]) {
+    if(vcp == "brightness" && monitor.hdr === "active" && (settings.sdrAsMainSliderDisplays?.[monitor.key] || settings.sdrAsMainSlider)) {
       vcp = "sdr"
       useCap = false
     }
@@ -2013,7 +2030,7 @@ function updateBrightness(index, newLevel, useCap = true, vcpValue = "brightness
         id: monitor.id
       })
       monitor.sdrLevel = level
-      if(settings.sdrAsMainSliderDisplays?.[monitor.key]) {
+      if(settings.sdrAsMainSliderDisplays?.[monitor.key] || settings.sdrAsMainSlider) {
         monitor.brightness = level
         monitor.brightnessRaw = normalized
       }
@@ -2028,7 +2045,7 @@ function updateBrightness(index, newLevel, useCap = true, vcpValue = "brightness
         })
 
         // Replace DDC/CI brightness with SDR
-        if(settings.sdrAsMainSliderDisplays?.[monitor.key] && monitor.hdr === "active") {
+        if((settings.sdrAsMainSliderDisplays?.[monitor.key] || settings.sdrAsMainSlider) && monitor.hdr === "active") {
           monitor.brightness = monitor.sdrLevel
         }
 
@@ -2117,7 +2134,7 @@ function updateAllBrightness(brightness, mode = "offset") {
     if (monitor.type !== "none") {
 
       // Replace DDC/CI brightness with SDR
-      if(settings.sdrAsMainSliderDisplays?.[monitor.key] && monitor.hdr === "active") {
+      if((settings.sdrAsMainSliderDisplays?.[monitor.key] || settings.sdrAsMainSlider) && monitor.hdr === "active") {
         monitor.brightness = monitor.sdrLevel
       }
 
@@ -2134,7 +2151,7 @@ function updateAllBrightness(brightness, mode = "offset") {
       }
 
       monitors[key].brightness = normalizedAdjust
-      if(settings.sdrAsMainSliderDisplays?.[monitor.key]) monitors[key].sdrLevel = normalizedAdjust;
+      if(settings.sdrAsMainSliderDisplays?.[monitor.key] || settings.sdrAsMainSlider) monitors[key].sdrLevel = normalizedAdjust;
     }
   }
 

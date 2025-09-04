@@ -1284,6 +1284,7 @@ export default class SettingsWindow extends PureComponent {
                                             </div>
                                         } />
                                     </SettingsOption>
+                                    <SettingsOption title={T.t("SETTINGS_MONITORS_SDR_GLOBAL_TITLE")} description={T.t("SETTINGS_MONITORS_SDR_GLOBAL_DESCRIPTION")} input={this.renderToggle("sdrAsMainSlider")} />
                                     <SettingsOption title={T.t("SETTINGS_MONITORS_SDR_SLIDER_TITLE")} description={T.t("SETTINGS_MONITORS_SDR_SLIDER_DESCRIPTION")} expandable={true}>
                                         {this.getSDRMonitorsSettings()}
                                     </SettingsOption>
