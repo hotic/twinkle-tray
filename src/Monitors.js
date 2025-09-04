@@ -493,9 +493,9 @@ getHDRDisplays = async (monitors) => {
                 key: hwid[2],
                 id: display.path,
                 hwid,
-                // Mark as HDR-only display when global/per-display SDR-as-main is enabled,
+                // Mark as HDR-only display when global SDR-as-main is enabled,
                 // so UI does not filter it out due to missing DDC/CI/WMI.
-                type: ((settings?.sdrAsMainSlider || settings?.sdrAsMainSliderDisplays?.[hwid[2]]) ? "hdr" : undefined),
+                type: (settings?.sdrAsMainSlider ? "hdr" : undefined),
                 sdrNits: display.nits,
                 sdrLevel: parseInt((display.nits - 80) / 4),
                 hdr: (display.hdrActive ? "active" : display.hdrEnabled ? "supported" : "unsupported")

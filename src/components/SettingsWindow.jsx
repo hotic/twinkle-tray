@@ -361,11 +361,7 @@ export default class SettingsWindow extends PureComponent {
                 label: T.t("SETTINGS_SIDEBAR_HOTKEYS"),
                 icon: "&#xF210;"
             },
-            {
-                id: "updates",
-                label: T.t("SETTINGS_SIDEBAR_UPDATES"),
-                icon: "&#xE895;"
-            },
+            // Updates page hidden for custom build
             {
                 id: "debug",
                 label: "Debug",
@@ -829,27 +825,7 @@ export default class SettingsWindow extends PureComponent {
         }
     }
 
-    getSDRMonitorsSettings = () => {
-                try {
-            if (this.state.monitors == undefined || Object.keys(this.state.monitors).length == 0) {
-                return (<SettingsChild title={T.t("GENERIC_NO_COMPATIBLE_DISPLAYS")} />)
-            } else {
-                return Object.values(this.state.monitors).map((monitor, index) => {
-
-                    return (
-                        <SettingsChild key={monitor.key} icon="E7F4" title={getMonitorName(monitor, this.state.names)} input={
-                            <div className="inputToggle-generic">
-                                <input onChange={(e) => { this.setSDRMonitor(e.target.checked, monitor) }} checked={(this.state.rawSettings?.sdrAsMainSliderDisplays?.[monitor.key] ? true : false)} data-checked={(this.state.rawSettings?.sdrAsMainSliderDisplays?.[monitor.key] ? true : false)} type="checkbox" />
-                            </div>
-                        } />
-                    )
-
-                })
-            }
-        } catch (e) {
-            console.log(e)
-        }
-    }
+    getSDRMonitorsSettings = () => { return null }
 
     setHDRMonitor = (value, monitor) => {
         const hdrDisplays = Object.assign({}, this.state.rawSettings?.hdrDisplays)
@@ -857,11 +833,7 @@ export default class SettingsWindow extends PureComponent {
         this.setSetting("hdrDisplays", hdrDisplays)
     }
 
-    setSDRMonitor = (value, monitor) => {
-        const sdrDisplays = Object.assign({}, this.state.rawSettings?.sdrAsMainSliderDisplays)
-        sdrDisplays[monitor.key] = value
-        this.setSetting("sdrAsMainSliderDisplays", sdrDisplays)
-    }
+    setSDRMonitor = () => { /* removed in custom build */ }
 
     getHideMonitors = () => {
         try {
@@ -1285,9 +1257,7 @@ export default class SettingsWindow extends PureComponent {
                                         } />
                                     </SettingsOption>
                                     <SettingsOption title={T.t("SETTINGS_MONITORS_SDR_GLOBAL_TITLE")} description={T.t("SETTINGS_MONITORS_SDR_GLOBAL_DESCRIPTION")} input={this.renderToggle("sdrAsMainSlider")} />
-                                    <SettingsOption title={T.t("SETTINGS_MONITORS_SDR_SLIDER_TITLE")} description={T.t("SETTINGS_MONITORS_SDR_SLIDER_DESCRIPTION")} expandable={true}>
-                                        {this.getSDRMonitorsSettings()}
-                                    </SettingsOption>
+                                    {/* Per-display SDR replacement removed in custom build */}
                                 </div>
 
                                 <div className="pageSection">
@@ -1413,6 +1383,7 @@ export default class SettingsWindow extends PureComponent {
 
 
 
+                            { false && (
                             <SettingsPage current={this.state.activePage} id="updates">
                                 <div className="pageSection">
                                     <div className="sectionTitle">{T.t("SETTINGS_UPDATES_TITLE")}</div>
@@ -1429,6 +1400,7 @@ export default class SettingsWindow extends PureComponent {
                                     } />
                                 </div>
                             </SettingsPage>
+                            ) }
 
                             <SettingsPage current={this.state.activePage} id="debug">
     

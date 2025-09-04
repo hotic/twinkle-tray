@@ -125,6 +125,8 @@
     "SETTINGS_MONITORS_HDR_DISPLAYS_DESC": "Enable SDR brightness sliders for specific monitors. The monitors must have HDR enabled in Windows for this to work.",
     "SETTINGS_MONITORS_SDR_GLOBAL_TITLE": "Use SDR as primary slider (all HDR displays)",
     "SETTINGS_MONITORS_SDR_GLOBAL_DESCRIPTION": "When HDR is active, replace DDC/CI brightness with SDR content brightness for all displays.",
+    "PANEL_SDR_GLOBAL_REQUIRES_HDR_TITLE": "HDR is turned off",
+    "PANEL_SDR_GLOBAL_REQUIRES_HDR_DESC": "Enable Windows HDR or turn off \"Use SDR as primary slider\" in Settings.",
     "SETTINGS_MONITORS_SDR_SLIDER_TITLE": "SDR Replaces Primary Slider",
     "SETTINGS_MONITORS_SDR_SLIDER_DESCRIPTION": "Control SDR brightness from main brightness slider while HDR is active.",
     "SETTINGS_FEATURES_DESCRIPTION": "Enable or disable specific DDC/CI features in the brightness panel. At least one feature must be enabled for your monitor to show up in the brightness panel. Not all displays support these features, such as laptop/tablet displays.",

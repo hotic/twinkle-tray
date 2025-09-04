@@ -485,7 +485,7 @@ const defaultSettings = {
   hdrDisplays: {},
   sdrAsMainSliderDisplays: {},
   sdrAsMainSlider: false,
-  checkForUpdates: !isDev,
+  checkForUpdates: false,
   dismissedUpdate: '',
   language: "system",
   names: {},
@@ -575,6 +575,9 @@ function readSettings(doProcessSettings = true) {
   // Overrides
   settings.isDev = isDev
   settings.killWhenIdle = false
+  // Disable update checks to avoid updating to upstream builds
+  settings.checkForUpdates = false
+  settings.branch = 'custom'
 
   if(!isDev && settings.showConsole && !app.commandLine.hasSwitch("console")) {
     reopenAppWithConsole()
@@ -725,6 +728,9 @@ function readSettings(doProcessSettings = true) {
   if (settings.settingsVer == "v1.17.0-beta1" || settingsVersion < Utils.getVersionValue("v1.16.8")) {
     if(settings.hdrDisplays) delete settings.hdrDisplays;
   }
+
+  // Remove per-display SDR setting in custom build
+  if(settings.sdrAsMainSliderDisplays) delete settings.sdrAsMainSliderDisplays;
 
   if (doProcessSettings) processSettings({ isReadSettings: true });
 }
@@ -886,13 +892,11 @@ function processSettings(newSettings = {}, sendUpdate = true) {
       }
     }
 
+    // Force updates off regardless of user setting
+    settings.checkForUpdates = false
     if (newSettings.checkForUpdates !== undefined) {
-      if (newSettings.checkForUpdates === false) {
-        latestVersion = false
-        sendToAllWindows('latest-version', latestVersion);
-      } else {
-        lastCheck = false
-      }
+      latestVersion = false
+      sendToAllWindows('latest-version', latestVersion);
     }
 
     if (newSettings.isDev === true || newSettings.isDev === false) {
@@ -903,11 +907,7 @@ function processSettings(newSettings = {}, sendUpdate = true) {
       rebuildTray = true
     }
 
-    if (newSettings.branch) {
-      lastCheck = false
-      settings.dismissedUpdate = false
-      checkForUpdates()
-    }
+    // Ignore branch changes when updates are disabled
 
     if (settings.analytics) {
       pingAnalytics()
@@ -1085,7 +1085,7 @@ function applyProfile(profile = {}, useTransition = false, transitionSpeed = 1, 
         // Apply brightness to valid display types
         if (monitor.type == "wmi" || monitor.type == "studio-display" || (monitor.type == "ddcci" && monitor.brightnessType) || (settings.sdrAsMainSlider && monitor.hdr)) {
           // Replace DDC/CI brightness with SDR
-          if((settings.sdrAsMainSliderDisplays?.[monitor.key] || settings.sdrAsMainSlider) && monitor.hdr === "active") {
+          if((settings.sdrAsMainSlider) && monitor.hdr === "active") {
             monitor.brightness = monitor.sdrLevel
           }
           updateBrightness(monitor.id, monitor.brightness)
@@ -1537,9 +1537,21 @@ function getLocalization() {
     if (localization.detected === "zh_Hans") {
       localization.desired["SETTINGS_MONITORS_SDR_GLOBAL_TITLE"] = localization.desired["SETTINGS_MONITORS_SDR_GLOBAL_TITLE"] || "在 HDR 下用 SDR 作为主滑块";
       localization.desired["SETTINGS_MONITORS_SDR_GLOBAL_DESCRIPTION"] = localization.desired["SETTINGS_MONITORS_SDR_GLOBAL_DESCRIPTION"] || "当 HDR 开启时，将主亮度改为调节“SDR 内容亮度”（绕过 DDC/CI）。";
+      localization.desired["PANEL_SDR_GLOBAL_REQUIRES_HDR_TITLE"] = localization.desired["PANEL_SDR_GLOBAL_REQUIRES_HDR_TITLE"] || "HDR 未开启";
+      localization.desired["PANEL_SDR_GLOBAL_REQUIRES_HDR_DESC"] = localization.desired["PANEL_SDR_GLOBAL_REQUIRES_HDR_DESC"] || "请先在 Windows 中开启 HDR，或在设置中关闭“在 HDR 下用 SDR 作为主滑块”。";
+      localization.desired["SETTINGS_MONITORS_SDR_SLIDER_TITLE"] = localization.desired["SETTINGS_MONITORS_SDR_SLIDER_TITLE"] || "SDR 替换主滑块";
+      localization.desired["SETTINGS_MONITORS_SDR_SLIDER_DESCRIPTION"] = localization.desired["SETTINGS_MONITORS_SDR_SLIDER_DESCRIPTION"] || "在 HDR 激活时，使用主亮度滑块来调节 SDR 亮度。";
+      localization.desired["SETTINGS_GENERAL_DISABLE_ON_LOCK_SCREEN_TITLE"] = localization.desired["SETTINGS_GENERAL_DISABLE_ON_LOCK_SCREEN_TITLE"] || "锁屏时禁用";
+      localization.desired["SETTINGS_GENERAL_DISABLE_ON_LOCK_SCREEN_DESC"] = localization.desired["SETTINGS_GENERAL_DISABLE_ON_LOCK_SCREEN_DESC"] || "当用户会话被锁定时，不访问显示器以避免多用户环境中的冲突。";
     } else if (localization.detected === "zh-Hant") {
       localization.desired["SETTINGS_MONITORS_SDR_GLOBAL_TITLE"] = localization.desired["SETTINGS_MONITORS_SDR_GLOBAL_TITLE"] || "在 HDR 下以 SDR 作為主滑桿";
       localization.desired["SETTINGS_MONITORS_SDR_GLOBAL_DESCRIPTION"] = localization.desired["SETTINGS_MONITORS_SDR_GLOBAL_DESCRIPTION"] || "當 HDR 開啟時，主亮度改為調整「SDR 內容亮度」（略過 DDC/CI）。";
+      localization.desired["PANEL_SDR_GLOBAL_REQUIRES_HDR_TITLE"] = localization.desired["PANEL_SDR_GLOBAL_REQUIRES_HDR_TITLE"] || "HDR 未開啟";
+      localization.desired["PANEL_SDR_GLOBAL_REQUIRES_HDR_DESC"] = localization.desired["PANEL_SDR_GLOBAL_REQUIRES_HDR_DESC"] || "請先在 Windows 中開啟 HDR，或在設定中關閉「在 HDR 下以 SDR 作為主滑桿」。";
+      localization.desired["SETTINGS_MONITORS_SDR_SLIDER_TITLE"] = localization.desired["SETTINGS_MONITORS_SDR_SLIDER_TITLE"] || "SDR 取代主滑桿";
+      localization.desired["SETTINGS_MONITORS_SDR_SLIDER_DESCRIPTION"] = localization.desired["SETTINGS_MONITORS_SDR_SLIDER_DESCRIPTION"] || "當 HDR 啟用時，使用主亮度滑桿來調整 SDR 亮度。";
+      localization.desired["SETTINGS_GENERAL_DISABLE_ON_LOCK_SCREEN_TITLE"] = localization.desired["SETTINGS_GENERAL_DISABLE_ON_LOCK_SCREEN_TITLE"] || "鎖定畫面時停用";
+      localization.desired["SETTINGS_GENERAL_DISABLE_ON_LOCK_SCREEN_DESC"] = localization.desired["SETTINGS_GENERAL_DISABLE_ON_LOCK_SCREEN_DESC"] || "當使用者工作階段被鎖定時，不存取顯示器以避免多使用者環境的衝突。";
     }
   } catch (e) { }
 
@@ -1875,7 +1887,7 @@ async function refreshMonitors(fullRefresh = false, bypassRateLimit = false) {
 
 
       // Replace DDC/CI brightness with SDR
-      if((settings.sdrAsMainSliderDisplays?.[monitor.key] || settings.sdrAsMainSlider) && monitor.hdr === "active") {
+      if((settings.sdrAsMainSlider) && monitor.hdr === "active") {
         monitor.brightness = monitor.sdrLevel
       }
 
@@ -2006,7 +2018,7 @@ function updateBrightness(index, newLevel, useCap = true, vcpValue = "brightness
     }
     
 
-    if(vcp == "brightness" && monitor.hdr === "active" && (settings.sdrAsMainSliderDisplays?.[monitor.key] || settings.sdrAsMainSlider)) {
+    if(vcp == "brightness" && monitor.hdr === "active" && (settings.sdrAsMainSlider)) {
       vcp = "sdr"
       useCap = false
     }
@@ -2030,12 +2042,16 @@ function updateBrightness(index, newLevel, useCap = true, vcpValue = "brightness
         id: monitor.id
       })
       monitor.sdrLevel = level
-      if(settings.sdrAsMainSliderDisplays?.[monitor.key] || settings.sdrAsMainSlider) {
+      if(settings.sdrAsMainSlider) {
         monitor.brightness = level
         monitor.brightnessRaw = normalized
       }
     } else if (monitor.type == "ddcci") {
       if (vcp === "brightness") {
+        // Block adjustments if user opted to use SDR as main slider but HDR is not active
+        if(settings.sdrAsMainSlider && monitor.hdr !== "active") {
+          return false
+        }
         monitor.brightness = level
         monitor.brightnessRaw = normalized
         monitorsThread.send({
@@ -2045,7 +2061,7 @@ function updateBrightness(index, newLevel, useCap = true, vcpValue = "brightness
         })
 
         // Replace DDC/CI brightness with SDR
-        if((settings.sdrAsMainSliderDisplays?.[monitor.key] || settings.sdrAsMainSlider) && monitor.hdr === "active") {
+        if((settings.sdrAsMainSlider) && monitor.hdr === "active") {
           monitor.brightness = monitor.sdrLevel
         }
 
@@ -2134,7 +2150,7 @@ function updateAllBrightness(brightness, mode = "offset") {
     if (monitor.type !== "none") {
 
       // Replace DDC/CI brightness with SDR
-      if((settings.sdrAsMainSliderDisplays?.[monitor.key] || settings.sdrAsMainSlider) && monitor.hdr === "active") {
+      if((settings.sdrAsMainSlider) && monitor.hdr === "active") {
         monitor.brightness = monitor.sdrLevel
       }
 
@@ -2151,7 +2167,7 @@ function updateAllBrightness(brightness, mode = "offset") {
       }
 
       monitors[key].brightness = normalizedAdjust
-      if(settings.sdrAsMainSliderDisplays?.[monitor.key] || settings.sdrAsMainSlider) monitors[key].sdrLevel = normalizedAdjust;
+      if(settings.sdrAsMainSlider) monitors[key].sdrLevel = normalizedAdjust;
     }
   }
 
