@@ -178,6 +178,28 @@ export default class BrightnessPanel extends PureComponent {
     }
   }
 
+  handleThemeToggle = () => {
+    // Immediately toggle the theme before system theme changes
+    window.theme = (window.theme === "dark") ? "light" : "dark"
+    // Also update body dataset so the panel UI changes immediately
+    window.document.body.dataset["systemTheme"] = window.theme
+    if (window.settings?.theme !== "dark" && window.settings?.theme !== "light") {
+      window.document.body.dataset["theme"] = window.theme
+    }
+    this.forceUpdate()
+    // Then trigger the actual system theme change
+    window.toggleSystemTheme()
+  }
+
+  getThemeToggleIcon = () => {
+    const isDark = window.theme === "dark"
+    return (
+      <div title={T.t("PANEL_BUTTON_TOGGLE_THEME")} className="theme-toggle" onClick={this.handleThemeToggle}>
+        {isDark ? "\uE706" : "\uE708"}
+      </div>
+    )
+  }
+
   getMonitorName = (monitor, renames) => {
     if (Object.keys(renames).indexOf(monitor.id) >= 0 && renames[monitor.id] != "") {
       return renames[monitor.id]
@@ -414,6 +436,7 @@ export default class BrightnessPanel extends PureComponent {
     window.addEventListener("localizationUpdated", (e) => { T.setLocalizationData(e.detail.desired, e.detail.default); this.forceUpdate(); })
     window.addEventListener("updateUpdated", this.recievedUpdate)
     window.addEventListener("sleepUpdated", this.recievedSleep)
+    window.addEventListener("themeUpdated", () => { this.forceUpdate(); })
     window.addEventListener("isRefreshing", (e) => {
       this.setState({isRefreshing: e.detail})
     })
@@ -453,6 +476,7 @@ export default class BrightnessPanel extends PureComponent {
           <div className="icons">
             {this.getLinkIcon()}
             {this.getSleepIcon()}
+            {this.getThemeToggleIcon()}
             <div title={T.t("GENERIC_SETTINGS")} className="settings" onClick={window.openSettings}>&#xE713;</div>
           </div>
         </div>

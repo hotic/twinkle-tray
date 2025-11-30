@@ -32,6 +32,7 @@
     "PANEL_UPDATE_AVAILABLE": "有新版本可用",
     "PANEL_BUTTON_LINK_LEVELS": "同步调整",
     "PANEL_BUTTON_TURN_OFF_DISPLAYS": "关闭显示器",
+    "PANEL_BUTTON_TOGGLE_THEME": "切换深色/浅色模式",
     "PANEL_LABEL_BRIGHTNESS": "亮度",
     "PANEL_LABEL_CONTRAST": "对比度",
     "PANEL_LABEL_OFF_ON": "电源状态",

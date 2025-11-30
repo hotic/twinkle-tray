@@ -2458,6 +2458,41 @@ ipcMain.on('apply-last-known-monitors', () => { setKnownBrightness() })
 
 ipcMain.on('sleep-displays', () => sleepDisplays(settings.sleepAction, 1000))
 ipcMain.on('sleep-display', (e, hwid) => turnOffDisplayDDC(hwid, true))
+
+// Toggle system dark/light mode by opening theme files
+ipcMain.on('toggle-system-theme', () => {
+  console.log("toggle-system-theme received");
+  try {
+    const key = reg.openKey(reg.HKCU, 'Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize', reg.Access.ALL_ACCESS);
+    const currentAppsTheme = reg.getValue(key, null, 'AppsUseLightTheme');
+    reg.closeKey(key);
+
+    // Toggle: if current is light (1), switch to dark (0), vice versa
+    const switchToDark = currentAppsTheme === 1;
+    console.log(`Switching to ${switchToDark ? 'dark' : 'light'} mode`);
+
+    // Use the correct theme file paths for Windows 11
+    const darkTheme = `${process.env.windir}\\Resources\\Themes\\dark.theme`;
+    const lightTheme = `${process.env.windir}\\Resources\\Themes\\aero.theme`;
+    const themePath = switchToDark ? darkTheme : lightTheme;
+    
+    console.log(`Applying theme: ${themePath}`);
+    
+    // Simply "open" the theme file - this is what Windows does when you double-click a .theme file
+    // The shell will handle applying it properly, including taskbar
+    exec(`start "" "${themePath}"`, { shell: true }, (error) => {
+      if (error) {
+        console.log("Theme apply error:", error.message);
+      } else {
+        console.log("Theme file opened successfully");
+      }
+      // Refresh app's theme state after a delay
+      setTimeout(() => getThemeRegistry(), 2000);
+    });
+  } catch (e) {
+    console.log("Couldn't toggle system theme", e)
+  }
+})
 ipcMain.on('set-vcp', (e, values) => {
   setRecentlyInteracted(true)
   updateBrightnessThrottle(values.monitor, values.value, false, true, values.code)

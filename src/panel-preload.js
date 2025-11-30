@@ -176,6 +176,10 @@ function turnOffDisplays() {
     }, 111)
 }
 
+function toggleSystemTheme() {
+    ipc.send('toggle-system-theme')
+}
+
 function installUpdate() {
     ipc.send('get-update', window.latestVersion)
     ipc.send('clear-update', window.latestVersion.version)
@@ -313,6 +317,8 @@ ipc.on('theme-settings', (event, theme) => {
         window.document.body.dataset["coloredTaskbar"] = (theme.ColorPrevalence == 0 ? "false" : "true")
         window.document.body.dataset["useNativeAnimation"] = (settings.useNativeAnimation == false ? "false" : "true")
         isTransparent = theme.EnableTransparency
+        // Dispatch event for React components to update theme icon
+        window.dispatchEvent(new CustomEvent('themeUpdated', { detail: { theme: window.theme } }))
     } catch (e) {
         window.document.body.dataset["systemTheme"] = "default"
         window.document.body.dataset["theme"] = "dark"
@@ -441,6 +447,7 @@ window.sendHeight = sendHeight
 window.panelAnimationDone = panelAnimationDone
 window.setPanelVisibility = setPanelVisibility
 window.turnOffDisplays = turnOffDisplays
+window.toggleSystemTheme = toggleSystemTheme
 window.allMonitors = []
 window.lastUpdate = Date.now()
 window.showPanel = false
