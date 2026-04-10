@@ -140,14 +140,14 @@ function vcpStr(code) {
 let monitorsThread = {
   send: async function (data) {
     try {
-      if (!(monitorsThreadReal?.connected && monitorsThreadReal?.exitCode !== null)) {
+      if (!(monitorsThreadReal?.connected && monitorsThreadReal?.exitCode === null)) {
         startMonitorThread()
         while(!monitorsThreadReady) {
           await Utils.wait(50)
         }
       }
       if(!monitorsThreadReady) throw("Thread not ready!");
-      if(!monitorsThreadReal?.connected || monitorsThreadReal?.exitCode !== null) throw("Thread not available!");
+      if(!(monitorsThreadReal?.connected && monitorsThreadReal?.exitCode === null)) throw("Thread not available!");
       if((data.type == "vcp" || data.type == "brightness" || data.type == "getVCP") && isRefreshing) while(isRefreshing) {
         await Utils.wait(50)
       }
@@ -173,7 +173,7 @@ let monitorsThreadReady = false
 let monitorsThreadStarting = false
 let monitorsThreadFailed = false
 function startMonitorThread() {
-  if(monitorsThreadReal?.connected || monitorsThreadStarting || isWindowsUserIdle) return false;
+  if((monitorsThreadReal?.connected && monitorsThreadReal?.exitCode === null) || monitorsThreadStarting || isWindowsUserIdle) return false;
   monitorsThreadReady = false
   monitorsThreadStarting = true
   console.log("Starting monitor thread")
@@ -215,7 +215,7 @@ function startMonitorThread() {
     const options = {
     title: 'Monitors thread failed',
     message: 'The monitors thread failed with the following message:',
-    detail: err
+    detail: err.message || err.toString(),
   };
 
   require('electron').dialog.showMessageBox(null, options, (response, checkboxChecked) => { });
@@ -783,6 +783,8 @@ function processSettings(newSettings = {}, sendUpdate = true) {
       sendToAllWindows('theme-settings', lastTheme)
     }
 
+    handleAccentChange()
+
     updateStartupOption((settings.openAtLogin || false))
     applyOrder()
     applyRemaps()
@@ -903,8 +905,13 @@ function processSettings(newSettings = {}, sendUpdate = true) {
       rebuildTray = true
     }
 
-    if (newSettings.profiles) {
+    if (settings.profiles) {
       rebuildTray = true
+      if(settings.profiles?.length > 0) {
+        if(!focusTrackingID) startFocusTracking();
+      } else if(focusTrackingID) {
+        stopFocusTracking()
+      }
     }
 
     // Ignore branch changes when updates are disabled
@@ -1093,7 +1100,7 @@ function applyProfile(profile = {}, useTransition = false, transitionSpeed = 1, 
       } catch (e) { console.log("Couldn't set brightness for known display!") }
     }
   }
-
+  
   sendToAllWindows('monitors-updated', monitors);
 }
 
@@ -1342,8 +1349,13 @@ async function hotkeyOverlayShow() {
     const panelWidth = 216
     const primaryDisplay = screen.getPrimaryDisplay()
 
+    // Only add gap if the taskbar is actually hidden (not taking up space).
+    // This handles per-monitor auto-hide mods (e.g., Windhawk) where the global
+    // auto-hide registry setting doesn't reflect the actual state on each monitor.
+    const taskbarActuallyHidden = primaryDisplay.bounds.height === primaryDisplay.workArea.height
+
     let gap = 0
-    if(detectedTaskbarHide) {
+    if(taskbarActuallyHidden && detectedTaskbarHide) {
       gap = detectedTaskbarHeight
     }
     if (typeof settings.overrideTaskbarGap === "number") {
@@ -1433,6 +1445,7 @@ function applyRemap(monitor) {
         let remap = settings.remaps[remapName]
         monitor.min = remap.min
         monitor.max = remap.max
+        monitor.calibration = remap.calibration
         // Stop if using new scheme
         if (remapName == monitor.id) return monitor;
       }
@@ -1458,10 +1471,35 @@ function determineTheme(themeName) {
   }
 }
 
+function enableStartup(appName, appPath) {
+    const runKey = reg.openKey(reg.HKCU, 'Software\\Microsoft\\Windows\\CurrentVersion\\Run', reg.Access.ALL_ACCESS);
+    reg.setValueSZ(runKey, appName, `"${appPath}"`);
+}
+
+function disableStartup(appName) {
+    const runKey = reg.openKey(reg.HKCU, 'Software\\Microsoft\\Windows\\CurrentVersion\\Run', reg.Access.ALL_ACCESS);
+    reg.deleteValue(runKey, appName);
+    
+    const approvedKey = reg.openKey(reg.HKCU, 'Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run', reg.Access.ALL_ACCESS);
+    reg.deleteValue(approvedKey, appName);
+}
+
 
 async function updateStartupOption(openAtLogin) {
-  if (!isDev)
-    app.setLoginItemSettings({ openAtLogin })
+  if (!isDev && !isAppX) {
+    /*
+    app.setLoginItemSettings({
+      openAtLogin,
+      path: `"${app.getPath('exe')}"`,
+    })
+    */
+
+    if(openAtLogin) {
+      enableStartup('electron.app.Twinkle Tray', app.getPath('exe'))
+    } else {
+      disableStartup('electron.app.Twinkle Tray')
+    }
+  }
 
   // Set autolaunch for AppX
   try {
@@ -1610,7 +1648,8 @@ function getSettings() {
 
 function getDDCBrightnessVCPs() {
   try {
-    let ids = Object.assign(knownDDCBrightnessVCPs, settings.userDDCBrightnessVCPs)
+    // Create a new object to avoid mutating knownDDCBrightnessVCPs
+    let ids = Object.assign({}, knownDDCBrightnessVCPs, settings.userDDCBrightnessVCPs)
     for (let mon in ids) {
       ids[mon] = parseInt(ids[mon])
     }
@@ -1883,7 +1922,7 @@ async function refreshMonitors(fullRefresh = false, bypassRateLimit = false) {
     for (let id in newMonitors) {
       const monitor = newMonitors[id]
       // Brightness
-      monitor.brightness = normalizeBrightness(monitor.brightness, true, monitor.min, monitor.max)
+      monitor.brightness = normalizeBrightness(monitor.brightness, true, monitor.min, monitor.max, monitor.calibration)
 
 
       // Replace DDC/CI brightness with SDR
@@ -2033,7 +2072,7 @@ function updateBrightness(index, newLevel, useCap = true, vcpValue = "brightness
       return false
     }
 
-    const normalized = normalizeBrightness(level, false, (useCap ? monitor.min : 0), (useCap ? monitor.max : 100))
+    const normalized = normalizeBrightness(level, false, (useCap ? monitor.min : 0), (useCap ? monitor.max : 100), (useCap ? monitor.calibration : []))
 
     if (vcp === "sdr") {
       monitorsThread.send({
@@ -2086,25 +2125,26 @@ function updateBrightness(index, newLevel, useCap = true, vcpValue = "brightness
       } else {
         const vcpString = `0x${parseInt(vcp).toString(16).toUpperCase()}`
         try {
-
+          
           // Normalize VCP value, if applicable
           const featuresSettings = settings.monitorFeaturesSettings?.[monitor.hwid[1]]
           if(featuresSettings?.[vcp] && featuresSettings[vcp].min >= 0 && featuresSettings[vcp].max <= 100) {
             level = normalizeBrightness(level, false, featuresSettings[vcp].min, featuresSettings[vcp].max)
           }
-
+          
           if(monitor.features?.[vcpString]) {
             monitor.features[vcpString][0] = parseInt(level)
           }
           
-
+          
           monitorsThread.send({
             type: "vcp",
             monitor: monitor.hwid.join("#"),
             code: parseInt(vcp),
             value: parseInt(level)
           })
-
+          console.log('monitors-updated', monitor.features?.[vcpString])
+          
         } catch(e) {
           console.log(`Couldn't set VCP code ${vcpString} for monitor ${monitor.id}`, e)
         }
@@ -2181,9 +2221,16 @@ function updateAllBrightness(brightness, mode = "offset") {
 }
 
 
-function normalizeBrightness(brightness, normalize = false, min = 0, max = 100) {
+function normalizeBrightness(brightness, normalize = false, min = 0, max = 100, calibrationPoints = []) {
   // normalize = true when recieving from Monitors.js
   // normalize = false when sending to Monitors.js
+
+  const points = calibrationPoints.slice()
+  if(min > 0) points.push({ input: 0, output: min })
+  if(max < 100) points.push({ input: 100, output: max })
+
+  return Utils.getCalibratedValue(brightness, points, normalize)
+  
   let level = brightness
   if (level > 100) level = 100;
   if (level < 0) level = 0;
@@ -2653,11 +2700,12 @@ function createPanel(toggleOnLoad = false, isRefreshing = false, showOnLoad = tr
   })
 
   mainWindow.hookWindowMessage(126, (wParam, lParam) => {
-    if(settings.useWmDisplayChangeEvent) handleMetricsChange("wm_displaychange")
+    if(settings.useWmDisplayChangeEvent && !settings.disablePowerNotifications) handleMetricsChange("wm_displaychange")
   })
 
   // WM_POWERBROADCAST
   mainWindow.hookWindowMessage(0x218, (wParam, lParam) => {
+    if(settings.disablePowerNotifications) return false;
     if(wParam.readUInt32LE() !== 32787) return false;
     // PBT_POWERSETTINGCHANGE
 
@@ -2704,7 +2752,7 @@ function createPanel(toggleOnLoad = false, isRefreshing = false, showOnLoad = tr
         for(const hwid2 in monitors) {
           const monitor = monitors[hwid2]
           if(monitor.type === "wmi") {
-            const normalized = normalizeBrightness(setting.data, true, monitor.min, monitor.max)
+            const normalized = normalizeBrightness(setting.data, true, monitor.min, monitor.max, monitor.calibration)
             monitor.brightness = normalized
             monitor.brightnessRaw = setting.data
           }
@@ -2716,7 +2764,7 @@ function createPanel(toggleOnLoad = false, isRefreshing = false, showOnLoad = tr
 
   // WM_SYSCOMMAND
   mainWindow.hookWindowMessage(0x0112, (wParam, lParam) => {
-    if(!settings.useScMonitorPowerEvent) return false;
+    if(!settings.useScMonitorPowerEvent || settings.disablePowerNotifications) return false;
     if(wParam.readUInt32LE() === 61808) {
       // SC_MONITORPOWER
       if(lParam.readUInt32LE() === 2) {
@@ -2727,7 +2775,7 @@ function createPanel(toggleOnLoad = false, isRefreshing = false, showOnLoad = tr
     }
   })
 
-  PowerEvents.registerPowerSettingNotifications(getMainWindowHandle())
+  if(!settings.disablePowerNotifications) PowerEvents.registerPowerSettingNotifications(getMainWindowHandle())
 
 }
 
@@ -2874,6 +2922,13 @@ function repositionPanel() {
     sendToAllWindows('taskbar', taskbar)
 
     if (mainWindow && !isAnimatingPanel) {
+      // Check if taskbar is actually taking up space on the primary display.
+      // This handles per-monitor auto-hide mods (e.g., Windhawk) where the global
+      // auto-hide registry setting doesn't reflect the actual state on each monitor.
+      const taskbarActuallyHidden = (taskbar.position === "BOTTOM" || taskbar.position === "TOP")
+        ? primaryDisplay.bounds.height === primaryDisplay.workArea.height
+        : primaryDisplay.bounds.width === primaryDisplay.workArea.width
+
       if (taskbar.position == "LEFT") {
         mainWindow.setBounds({
           width: panelSize.width,
@@ -2888,8 +2943,8 @@ function repositionPanel() {
           x: primaryDisplay.bounds.x + primaryDisplay.workArea.width - panelSize.width,
           y: primaryDisplay.bounds.y + taskbar.gap
         })
-      } else if (detectedTaskbarHide && taskbar.position == "BOTTOM") {
-        // Edge case for auto-hide taskbar
+      } else if (taskbarActuallyHidden && taskbar.position == "BOTTOM") {
+        // Edge case for auto-hide taskbar (taskbar is truly hidden, not taking up space)
         mainWindow.setBounds({
           width: panelSize.width,
           height: panelSize.height,
@@ -2924,9 +2979,13 @@ const ignoreAppList = [
 ]
 const windowHistory = []
 let preProfileBrightness = {}
+let focusTrackingID = 0
 function startFocusTracking() {
-  ActiveWindow.subscribe(async window => {
+  if(focusTrackingID) return false; // Already tracking
+
+  focusTrackingID = ActiveWindow.subscribe(async window => {
     if (!window) return false;
+    if (settings.profiles?.length == 0) return false;
 
     const hwnd = WindowUtils.getForegroundWindow()
     const profile = windowMatchesProfile(window)
@@ -2972,6 +3031,16 @@ function startFocusTracking() {
     }
     currentProfile = profile
   })
+
+  console.log(`Starting focus tracking... (#${focusTrackingID})`)
+}
+
+function stopFocusTracking() {
+  if (focusTrackingID) {
+    console.log("Stopping focus tracking...")
+    ActiveWindow.unsubscribe(focusTrackingID)
+    focusTrackingID = 0
+  }
 }
 
 function windowMatchesProfile(window) {
@@ -3268,6 +3337,13 @@ app.on("ready", async () => {
       setTimeout(() => handleBackgroundUpdate(true), 3500)
     }
     restartBackgroundUpdate()
+  
+    // Set startup grace period to prevent delayed handlers from overwriting current brightness
+    isStartupGracePeriod = true
+    setTimeout(() => {
+      isStartupGracePeriod = false
+      console.log("Startup grace period ended")
+    }, 30000) // 30 seconds grace period
   
     setTimeout(addEventListeners, 5000)
   })
@@ -3892,9 +3968,9 @@ ipcMain.on('clear-update', (event, dismissedUpdate) => {
 
 let backgroundInterval = null
 function addEventListeners() {
-  systemPreferences.on('accent-color-changed', handleAccentChange)
-  systemPreferences.on('color-changed', handleAccentChange)
-  nativeTheme.on('updated', handleAccentChange)
+  systemPreferences.on('accent-color-changed', () => { if(!settings.disableThemeChanges) handleAccentChange(); })
+  systemPreferences.on('color-changed', () => { if(!settings.disableThemeChanges) handleAccentChange(); })
+  nativeTheme.on('updated', () => { if(!settings.disableThemeChanges) handleAccentChange(); })
 
   addDisplayChangeListener(() => { if(settings.useWin32Event) handleMonitorChange("win32") })
   screen.addListener("display-added", () => { if(settings.useElectronEvents) handleMonitorChange("display-added") })
@@ -3905,8 +3981,6 @@ function addEventListeners() {
 
   // Disable mouse events at startup
   pauseMouseEvents(true)
-
-  startFocusTracking()
 }
 
 let handleAccentChangeTimeout = false
@@ -3927,6 +4001,7 @@ function handleAccentChange() {
 }
 
 let skipFirstMonChange = false
+let isStartupGracePeriod = false
 let handleChangeTimeout0
 let handleChangeTimeout1
 let handleChangeTimeout2
@@ -3953,7 +4028,15 @@ function handleMonitorChange(t, e, d) {
     // Reset all known displays
     await refreshMonitors(true)
 
-    if (!settings.disableAutoApply) setKnownBrightness();
+    // During startup grace period, use current monitor brightness instead of saved profile
+    // This prevents overwriting brightness that was manually set before shutdown
+    if (!settings.disableAutoApply) {
+      if (isStartupGracePeriod) {
+        setKnownBrightness(true); // useCurrentMonitors = true to preserve current brightness
+      } else {
+        setKnownBrightness();
+      }
+    }
     handleBackgroundUpdate(true) // Apply Time Of Day Adjustments
 
     // If displays not shown, refresh mainWindow
@@ -4021,7 +4104,15 @@ function handleMetricsChange(type) {
     // Do a quick check to ensure handles are all good
     await refreshMonitors(true)
 
-    if (!settings.disableAutoApply && !hasRecentlyInteracted) setKnownBrightness();
+    // During startup grace period, use current monitor brightness instead of saved profile
+    // This prevents overwriting brightness that was manually set before shutdown
+    if (!settings.disableAutoApply && !hasRecentlyInteracted) {
+      if (isStartupGracePeriod) {
+        setKnownBrightness(true); // useCurrentMonitors = true to preserve current brightness
+      } else {
+        setKnownBrightness();
+      }
+    }
     handleBackgroundUpdate(true) // Apply Time Of Day Adjustments
 
     handleChangeTimeout1 = false

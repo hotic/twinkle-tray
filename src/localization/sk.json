@@ -21,7 +21,7 @@
     "GENERIC_NO_DISPLAYS_SHORT": "Neboli zistené žiadne kompatibilné displeje.",
     "GENERIC_SECONDS": "sekúnd",
     "GENERIC_MINUTES": "minút",
-    "GENERIC_DDC_WARNING": "DDC/CI funkcie ako napríklad ovládanie napájania môžu spôsobiť, že váš monitor prestane reagovať. Používajte na vlastné nebezpečenstvo.",
+    "GENERIC_DDC_WARNING": "DDC/CI funkcie môžu spôsobiť, že váš monitor prestane reagovať. Používajte na vlastné nebezpečenstvo.",
     "GENERIC_SPEED_INSTANT": "Okamžité",
     "GENERIC_SPEED_SLOW": "Pomalé",
     "GENERIC_SPEED_VERY_SLOW": "Veľmi pomalé",
@@ -215,5 +215,16 @@
     "SETTINGS_PROFILES_OVERLAY_TITLE": "Nadradiť typ prekrytia",
     "SETTINGS_PROFILES_OVERLAY_DESC": "Zmení správanie prekrytia skratky keď je určitá aplikácia aktívna. Táto funkcia nepracuje, keď je profil aktivovaný ručne.",
     "SETTINGS_GENERAL_DISABLE_ON_LOCK_SCREEN_TITLE": "Vypnúť na obrazovke uzamknutia",
-    "SETTINGS_GENERAL_DISABLE_ON_LOCK_SCREEN_DESC": "Nepristupovať k monitorom, kým je používateľská relácia uzamknutá, aby sa predišlo konfliktom v prostrediach s viacerými používateľmi."
+    "SETTINGS_GENERAL_DISABLE_ON_LOCK_SCREEN_DESC": "Nepristupovať k monitorom, kým je používateľská relácia uzamknutá, aby sa predišlo konfliktom v prostrediach s viacerými používateľmi.",
+    "SETTINGS_MONITORS_HDR_DISPLAYS_TITLE": "Nastavenie HDR displeja",
+    "SETTINGS_MONITORS_HDR_DISPLAYS_DESC": "Zapne posuvníky SDR jasu pre špecifické monitory. Monitory musia mať HDR zapnuté vo Windows, aby to fungovalo.",
+    "SETTINGS_MONITORS_SDR_SLIDER_TITLE": "SDR nahradí primárny posuvník",
+    "SETTINGS_MONITORS_SDR_SLIDER_DESCRIPTION": "Kontroluje SDR jas z hlavného jasového posuvníka, ak je HDR aktívne.",
+    "SETTINGS_FEATURES_SDR_BRIGHTNESS": "SDR jas",
+    "GENERIC_CALIBRATION_POINT": "Kalibračný bod",
+    "GENERIC_SLIDER_NAME": "Zadajte názov pre posuvník",
+    "GENERIC_TEXT": "Text",
+    "GENERIC_ICON": "Ikona",
+    "PANEL_LABEL_INPUTS": "Vstupy",
+    "GENERIC_DETECTING_DISPLAYS": "Detekcia displejov…"
 }
