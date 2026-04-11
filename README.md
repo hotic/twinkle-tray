@@ -122,6 +122,7 @@ Thanks to [several contributors](https://github.com/xanderfrangos/twinkle-tray/g
 If you wish to run a development build of Twinkly Tray:
 
 - Download or clone.
+- Use Node.js 22. CI currently builds with Node 22, and newer major versions may fail to load some native dependencies.
 - Install the build tools for [`node-gyp`](https://github.com/nodejs/node-gyp#installation), if not already installed. You may already have these from installing NodeJS.
 - Run `npm install`.
 - Run `npm run build` to build an executable or `npm start` to run a development build.
